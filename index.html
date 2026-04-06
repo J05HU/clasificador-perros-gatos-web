@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>Clasificador de Mascotas IA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:'Nunito',sans-serif;
+      min-height:100vh;
+      background:#0f172a;
+      color:#e2e8f0;
+      overflow-x:hidden;
+    }
+
+    /* === FONDO ANIMADO === */
+    .bg-blobs{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+    .blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.35;animation:blobMove 20s ease-in-out infinite}
+    .blob-1{width:500px;height:500px;background:#7c3aed;top:-10%;left:-10%;animation-delay:0s}
+    .blob-2{width:400px;height:400px;background:#2563eb;bottom:-10%;right:-10%;animation-delay:-7s}
+    .blob-3{width:350px;height:350px;background:#ec4899;top:50%;left:50%;animation-delay:-14s}
+    @keyframes blobMove{
+      0%,100%{transform:translate(0,0) scale(1)}
+      25%{transform:translate(80px,-60px) scale(1.1)}
+      50%{transform:translate(-40px,80px) scale(.9)}
+      75%{transform:translate(60px,40px) scale(1.05)}
+    }
+
+    /* === PATITAS FLOTANTES === */
+    .paw{position:fixed;pointer-events:none;z-index:0;opacity:0;animation:pawFloat linear infinite}
+    @keyframes pawFloat{
+      0%{transform:translateY(105vh) rotate(0deg);opacity:0}
+      8%{opacity:.25}
+      92%{opacity:.25}
+      100%{transform:translateY(-5vh) rotate(360deg);opacity:0}
+    }
+
+    /* === HEADER === */
+    .header{
+      position:relative;z-index:1;text-align:center;
+      padding:50px 20px 10px;
+    }
+    .header-emoji{font-size:4rem;animation:bounce 2s ease-in-out infinite}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+    .header h1{
+      font-size:2.6rem;font-weight:900;margin:10px 0 8px;
+      background:linear-gradient(135deg,#f472b6,#a78bfa,#60a5fa,#34d399);
+      background-size:300% auto;
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      animation:shine 5s linear infinite;
+    }
+    @keyframes shine{0%{background-position:0% center}100%{background-position:300% center}}
+    .header p{color:#94a3b8;font-size:1.05rem;max-width:480px;margin:0 auto}
+
+    /* === CONTENEDOR === */
+    .app{position:relative;z-index:1;max-width:600px;margin:30px auto;padding:0 16px 50px}
+
+    /* === GLASS CARD === */
+    .card{
+      background:rgba(255,255,255,.06);
+      backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:28px;padding:28px;
+      box-shadow:0 8px 32px rgba(0,0,0,.25);
+      animation:cardIn .7s ease;
+    }
+    @keyframes cardIn{from{opacity:0;transform:translateY(40px) scale(.97)}to{opacity:1;transform:none}}
+
+    /* === TABS === */
+    .tabs{display:flex;gap:0;background:rgba(0,0,0,.35);border-radius:16px;padding:4px;margin-bottom:24px}
+    .tab{
+      flex:1;border:none;background:transparent;color:#94a3b8;
+      padding:14px 10px;font-size:1rem;font-weight:700;font-family:inherit;
+      cursor:pointer;border-radius:12px;transition:.3s;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .tab.on{background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.45)}
+    .tab:not(.on):hover{background:rgba(255,255,255,.08);color:#cbd5e1}
+    .tab svg{width:20px;height:20px;flex-shrink:0}
+
+    /* === SELECTOR DE MODELO === */
+    .model-switcher{
+      margin-bottom:22px;padding:16px;
+      background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(30,41,59,.82));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:20px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 12px 32px rgba(0,0,0,.18);
+    }
+    .model-switcher-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .model-switcher-head h2{font-size:1rem;font-weight:900;color:#f8fafc}
+    .model-status{
+      font-size:.82rem;font-weight:800;padding:8px 12px;border-radius:999px;
+      background:rgba(148,163,184,.16);color:#cbd5e1;border:1px solid rgba(148,163,184,.18)
+    }
+    .model-status.loading{background:rgba(250,204,21,.12);color:#fde68a;border-color:rgba(250,204,21,.25)}
+    .model-status.ready{background:rgba(52,211,153,.14);color:#bbf7d0;border-color:rgba(52,211,153,.28)}
+    .model-status.error{background:rgba(248,113,113,.14);color:#fecaca;border-color:rgba(248,113,113,.28)}
+    .model-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .model-btn{
+      border:none;border-radius:18px;padding:16px 14px;text-align:left;cursor:pointer;
+      background:rgba(255,255,255,.05);color:#cbd5e1;transition:.28s;
+      border:1px solid rgba(255,255,255,.08);font-family:inherit;
+    }
+    .model-btn:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.08)}
+    .model-btn.active{background:linear-gradient(135deg,rgba(236,72,153,.22),rgba(99,102,241,.25));border-color:rgba(244,114,182,.45);box-shadow:0 10px 28px rgba(99,102,241,.18)}
+    .model-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    .model-btn strong{display:block;font-size:1rem;font-weight:900;color:#fff;margin-bottom:5px}
+    .model-btn span{display:block;font-size:.86rem;line-height:1.35;color:#94a3b8}
+    .model-badge{
+      display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+      padding:6px 10px;border-radius:999px;font-size:.76rem;font-weight:900;
+      background:rgba(255,255,255,.08);color:#e2e8f0
+    }
+    .model-btn.active .model-badge{background:rgba(255,255,255,.16);color:#fff}
+
+    /* === CAMARA === */
+    .cam-box{position:relative;border-radius:20px;overflow:hidden;border:2px solid rgba(255,255,255,.08);box-shadow:0 6px 30px rgba(0,0,0,.3)}
+    .cam-box canvas{display:block;width:100%;height:auto}
+    .btn-flip{
+      position:absolute;top:12px;right:12px;z-index:5;
+      width:44px;height:44px;border-radius:50%;border:none;
+      background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+      color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:.3s;
+    }
+    .btn-flip:hover{background:rgba(124,58,237,.8);transform:rotate(180deg)}
+    .btn-flip svg{width:22px;height:22px}
+
+    /* === UPLOAD === */
+    .upload-area{display:none}
+    .dropzone{
+      border:3px dashed rgba(139,92,246,.35);border-radius:24px;
+      padding:50px 24px;text-align:center;cursor:pointer;
+      transition:.3s;position:relative;
+    }
+    .dropzone:hover{border-color:#8b5cf6;transform:translateY(-3px);box-shadow:0 8px 30px rgba(139,92,246,.15)}
+    .dropzone.over{border-color:#a78bfa;background:rgba(139,92,246,.12)}
+    .dz-icon{
+      width:80px;height:80px;margin:0 auto 16px;
+      background:linear-gradient(135deg,#7c3aed,#6366f1);
+      border-radius:50%;display:flex;align-items:center;justify-content:center;
+      animation:floatIcon 3s ease-in-out infinite;
+      box-shadow:0 6px 25px rgba(124,58,237,.4);
+    }
+    @keyframes floatIcon{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    .dz-icon svg{width:36px;height:36px;color:#fff}
+    .dropzone h3{font-size:1.4rem;font-weight:800;color:#e2e8f0;margin-bottom:6px}
+    .dropzone p{color:#64748b;font-size:.95rem}
+    .dropzone small{color:#475569;font-size:.8rem;display:block;margin-top:8px}
+
+    /* preview */
+    .preview-box{display:none;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3);animation:zoomIn .4s ease}
+    @keyframes zoomIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+    .preview-box img{width:100%;display:block;max-height:450px;object-fit:cover}
+    .btn-otra{
+      margin-top:16px;display:none;
+      background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+      color:#e2e8f0;padding:12px 24px;border-radius:14px;font-family:inherit;
+      font-weight:700;font-size:.95rem;cursor:pointer;transition:.2s;
+    }
+    .btn-otra:hover{background:rgba(255,255,255,.15);transform:translateY(-1px)}
+
+    /* === RESULTADO === */
+    .result{text-align:center;margin-top:24px;min-height:120px}
+    .result-emoji{font-size:3.2rem;display:inline-block}
+    .result-emoji.pop{animation:pop .5s ease}
+    @keyframes pop{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.3) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
+    #resultado{font-weight:900;font-size:3.5rem;line-height:1.1;transition:.3s}
+    .is-gato{background:linear-gradient(135deg,#f472b6,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .is-perro{background:linear-gradient(135deg,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    #confianza{font-size:1rem;color:#94a3b8;margin-top:4px}
+    .bar{max-width:280px;margin:12px auto 0;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;width:0;transition:width .3s,background .3s}
+
+    /* === FOOTER === */
+    .footer{position:relative;z-index:1;text-align:center;padding:30px 20px;color:#475569;font-size:.85rem;border-top:1px solid rgba(255,255,255,.05)}
+
+    /* ocultos */
+    #video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+    #otrocanvas,#canvasH{display:none}
+  </style>
+</head>
+<body>
+
+  <!-- Fondo -->
+  <div class="bg-blobs"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+  <div id="paws"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-emoji">🐾</div>
+    <h1>Es perro o gato?</h1>
+    <p>Apunta con tu camara o sube una foto y la inteligencia artificial te dira que animal es</p>
+  </header>
+
+  <!-- App -->
+  <div class="app">
+    <div class="card">
+
+      <div class="model-switcher">
+        <div class="model-switcher-head">
+          <h2>Modelo de prediccion</h2>
+          <div class="model-status loading" id="modelStatus">Cargando modelo base...</div>
+        </div>
+        <div class="model-options">
+          <button class="model-btn active" id="btnModeloBase" onclick="changeModel('base')">
+            <strong>Modelo base</strong>
+            <span>Version general del clasificador original para perros y gatos.</span>
+            <span class="model-badge">Uso general</span>
+          </button>
+          <button class="model-btn" id="btnModeloCachorros" onclick="changeModel('cachorros')">
+            <strong>Modelo cachorros</strong>
+            <span>Boton estetico para activar tu modelo optimizado para cachorros y gatitos.</span>
+            <span class="model-badge">Optimizado</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab on" id="t1" onclick="irCamara()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Camara
+        </button>
+        <button class="tab" id="t2" onclick="irSubir()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Subir foto
+        </button>
+      </div>
+
+      <!-- CAMARA -->
+      <div class="cam-area" id="camArea">
+        <div class="cam-box">
+          <button class="btn-flip" onclick="flipCam()" title="Girar camara">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <canvas id="canvas" width="400" height="400"></canvas>
+        </div>
+      </div>
+
+      <!-- SUBIR -->
+      <div class="upload-area" id="upArea">
+        <input type="file" id="fileIn" accept="image/*" style="display:none" onchange="onFile(event)">
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileIn').click()">
+          <div class="dz-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <h3>Sube la foto de tu mascota</h3>
+          <p>Haz clic aqui o arrastra la imagen</p>
+          <small>JPG, PNG - Tu gatito bebe o perrito</small>
+        </div>
+        <div class="preview-box" id="prevBox"><img id="prevImg" alt=""></div>
+        <div style="text-align:center"><button class="btn-otra" id="btnOtra" onclick="otraFoto()">Subir otra foto</button></div>
+      </div>
+
+      <!-- RESULTADO -->
+      <div class="result">
+        <div class="result-emoji" id="emoji"></div>
+        <div id="resultado"></div>
+        <div id="confianza"></div>
+        <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Ocultos -->
+  <video id="video" playsinline autoplay></video>
+  <canvas id="otrocanvas" width="100" height="100"></canvas>
+  <canvas id="canvasH" width="400" height="400"></canvas>
+
+  <!-- Footer -->
+  <footer class="footer">Clasificador de mascotas con inteligencia artificial</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script>
+/* === PATITAS === */
+(function(){
+  var c=document.getElementById('paws'),
+      e=['🐾','🐱','🐶','🐾','🐾','🐱','🐶'];
+  for(var i=0;i<14;i++){
+    var s=document.createElement('span');
+    s.className='paw';
+    s.textContent=e[i%e.length];
+    s.style.left=Math.random()*100+'%';
+    s.style.fontSize=(1.2+Math.random()*1.4)+'rem';
+    s.style.animationDuration=(14+Math.random()*20)+'s';
+    s.style.animationDelay=(Math.random()*18)+'s';
+    c.appendChild(s);
+  }
+})();
+
+/* === VARS === */
+var W=400,video=document.getElementById('video'),
+    canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),
+    small=document.getElementById('otrocanvas'),
+    canvasH=document.getElementById('canvasH'),
+    stream=null,facing='user',model=null,mode='cam',lastAns='';
+
+var modelDefinitions={
+      base:{
+        label:'Modelo base',
+        paths:['modelos/base/model.json','model.json']
+      },
+      cachorros:{
+        label:'Modelo cachorros',
+        paths:['modelos/cachorros/model.json']
+      }
+    },
+    activeModelKey='base',
+    activeModelLabel='Modelo base',
+    isModelLoading=false;
+
+class L2Regularizer {
+  constructor(config){
+    this.l2=config&&config.l2?config.l2:0;
+  }
+  apply(x){
+    return tf.tidy(function(){
+      return tf.scalar(0);
+    });
+  }
+  getConfig(){
+    return {l2:this.l2};
+  }
+  static fromConfig(cls,config){
+    return new cls(config);
+  }
+}
+L2Regularizer.className='L2';
+tf.serialization.registerClass(L2Regularizer);
+
+/* === MODELO === */
+window.addEventListener('load',function(){
+  startCam();
+  loadModel('base');
+});
+
+function setModelStatus(message,state){
+  var el=document.getElementById('modelStatus');
+  el.textContent=message;
+  el.className='model-status'+(state?' '+state:'');
+}
+
+function updateModelButtons(){
+  var keys=Object.keys(modelDefinitions);
+  for(var i=0;i<keys.length;i++){
+    var key=keys[i],btn=document.getElementById(key==='base'?'btnModeloBase':'btnModeloCachorros');
+    if(!btn)continue;
+    if(key===activeModelKey)btn.classList.add('active');
+    else btn.classList.remove('active');
+    btn.disabled=isModelLoading;
+  }
+}
+
+async function loadModel(modelKey){
+  var definition=modelDefinitions[modelKey];
+  if(!definition||isModelLoading)return;
+  isModelLoading=true;
+  activeModelKey=modelKey;
+  activeModelLabel=definition.label;
+  updateModelButtons();
+  setModelStatus('Cargando '+definition.label.toLowerCase()+'...','loading');
+
+  var lastError=null;
+  for(var i=0;i<definition.paths.length;i++){
+    try{
+      model=await tf.loadLayersModel(definition.paths[i]+'?v=20260406');
+      activeModelLabel=definition.label;
+      setModelStatus(definition.label+' activo','ready');
+      clearResult();
+      isModelLoading=false;
+      updateModelButtons();
+      return;
+    }catch(error){
+      lastError=error;
+    }
+  }
+
+  console.error(lastError);
+  setModelStatus('No se pudo cargar '+definition.label.toLowerCase(),'error');
+  isModelLoading=false;
+  updateModelButtons();
+}
+
+function changeModel(modelKey){
+  if(modelKey===activeModelKey||isModelLoading)return;
+  loadModel(modelKey);
+}
+
+/* === TABS === */
+function irCamara(){
+  mode='cam';
+  document.getElementById('t1').classList.add('on');
+  document.getElementById('t2').classList.remove('on');
+  document.getElementById('camArea').style.display='block';
+  document.getElementById('upArea').style.display='none';
+  clearResult();
+}
+function irSubir(){
+  mode='img';
+  document.getElementById('t2').classList.add('on');
+  document.getElementById('t1').classList.remove('on');
+  document.getElementById('upArea').style.display='block';
+  document.getElementById('camArea').style.display='none';
+  document.getElementById('dropzone').style.display='block';
+  document.getElementById('prevBox').style.display='none';
+  document.getElementById('btnOtra').style.display='none';
+  clearResult();
+}
+function clearResult(){
+  document.getElementById('resultado').innerHTML='';
+  document.getElementById('resultado').className='';
+  document.getElementById('emoji').innerHTML='';
+  document.getElementById('confianza').innerHTML='';
+  document.getElementById('barFill').style.width='0';
+  lastAns='';
+}
+
+/* === CAMARA === */
+function startCam(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+  navigator.mediaDevices.getUserMedia({audio:false,video:{width:W,height:W}})
+    .then(function(s){stream=s;video.srcObject=s;drawLoop();predictLoop()})
+    .catch(function(e){console.log(e)});
+}
+function flipCam(){
+  if(stream)stream.getTracks().forEach(function(t){t.stop()});
+  facing=facing==='user'?'environment':'user';
+  navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:facing,width:W,height:W}})
+    .then(function(s){stream=s;video.srcObject=s})
+    .catch(function(e){console.log(e)});
+}
+function drawLoop(){
+  if(mode==='cam')ctx.drawImage(video,0,0,W,W,0,0,W,W);
+  setTimeout(drawLoop,20);
+}
+
+/* === PREDICCION === */
+function predictLoop(){
+  if(model&&!isModelLoading){
+    var src=(mode==='img')?canvasH:canvas;
+    hermiteResize(src,100,100,small);
+    var d=small.getContext('2d').getImageData(0,0,100,100),a=[],r=[];
+    for(var p=0;p<d.data.length;p+=4){
+      var g=((d.data[p]+d.data[p+1]+d.data[p+2])/3)/255;
+      r.push([g]);
+      if(r.length===100){a.push(r);r=[]}
+    }
+    var t=tf.tensor4d([a]),res=model.predict(t).dataSync();t.dispose();
+    var ans,conf,em;
+    if(res[0]<=.5){ans='Gato';conf=((1-res[0])*100).toFixed(1);em='🐱'}
+    else{ans='Perro';conf=(res[0]*100).toFixed(1);em='🐶'}
+
+    var el=document.getElementById('resultado');
+    el.innerHTML=ans;
+    el.className=ans==='Gato'?'is-gato':'is-perro';
+
+    if(ans!==lastAns){
+      var eEl=document.getElementById('emoji');
+      eEl.innerHTML=em;eEl.className='result-emoji';
+      void eEl.offsetWidth;eEl.className='result-emoji pop';
+      lastAns=ans;
+    }
+    document.getElementById('confianza').innerHTML=activeModelLabel+' · Confianza: '+conf+'%';
+    var bf=document.getElementById('barFill');
+    bf.style.width=conf+'%';
+    bf.style.background=ans==='Gato'?'linear-gradient(90deg,#f472b6,#c084fc)':'linear-gradient(90deg,#60a5fa,#34d399)';
+  }
+  setTimeout(predictLoop,150);
+}
+
+/* === SUBIR FOTO === */
+function onFile(ev){
+  var f=ev.target.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(e){
+    var im=new Image();
+    im.onload=function(){
+      document.getElementById('prevImg').src=e.target.result;
+      document.getElementById('prevBox').style.display='block';
+      document.getElementById('dropzone').style.display='none';
+      document.getElementById('btnOtra').style.display='inline-block';
+      mode='img';
+      var cx=canvasH.getContext('2d');cx.clearRect(0,0,400,400);
+      var s=Math.min(im.width,im.height),sx=(im.width-s)/2,sy=(im.height-s)/2;
+      cx.drawImage(im,sx,sy,s,s,0,0,400,400);
+    };
+    im.src=e.target.result;
+  };
+  rd.readAsDataURL(f);
+}
+function otraFoto(){
+  document.getElementById('prevBox').style.display='none';
+  document.getElementById('dropzone').style.display='block';
+  document.getElementById('btnOtra').style.display='none';
+  document.getElementById('fileIn').value='';
+  clearResult();
+}
+
+/* Drag & Drop */
+var dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',function(){dz.classList.remove('over')});
+dz.addEventListener('drop',function(e){
+  e.preventDefault();dz.classList.remove('over');
+  if(e.dataTransfer.files.length){document.getElementById('fileIn').files=e.dataTransfer.files;onFile({target:{files:e.dataTransfer.files}})}
+});
+
+/* === HERMITE RESIZE === */
+function hermiteResize(cv,w,h,out){
+  var sw=cv.width,sh=cv.height;w=Math.round(w);h=Math.round(h);
+  var rw=sw/w,rh=sh/h,rwh=Math.ceil(rw/2),rhh=Math.ceil(rh/2);
+  var c1=cv.getContext('2d'),c2=out.getContext('2d');
+  var d1=c1.getImageData(0,0,sw,sh),d2=c2.createImageData(w,h);
+  var s=d1.data,o=d2.data;
+  for(var j=0;j<h;j++){for(var i=0;i<w;i++){
+    var x2=(i+j*w)*4,wt=0,wts=0,wa=0,gr=0,gg=0,gb=0,ga=0;
+    var cy2=(j+.5)*rh,ys=Math.floor(j*rh),ye=Math.ceil((j+1)*rh);
+    for(var yy=ys;yy<ye;yy++){
+      var dy=Math.abs(cy2-(yy+.5))/rhh,cx2=(i+.5)*rw,w0=dy*dy;
+      var xs=Math.floor(i*rw),xe=Math.ceil((i+1)*rw);
+      for(var xx=xs;xx<xe;xx++){
+        var dx=Math.abs(cx2-(xx+.5))/rwh,ww=Math.sqrt(w0+dx*dx);
+        if(ww>=1)continue;
+        wt=2*ww*ww*ww-3*ww*ww+1;var px=4*(xx+yy*sw);
+        ga+=wt*s[px+3];wa+=wt;
+        if(s[px+3]<255)wt=wt*s[px+3]/250;
+        gr+=wt*s[px];gg+=wt*s[px+1];gb+=wt*s[px+2];wts+=wt;
+      }
+    }
+    o[x2]=gr/wts;o[x2+1]=gg/wts;o[x2+2]=gb/wts;o[x2+3]=ga/wa;
+  }}
+  c2.putImageData(d2,0,0);
+}
+</script>
+</body>
+</html>
